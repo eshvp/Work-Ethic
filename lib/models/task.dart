@@ -11,7 +11,7 @@ class Task {
     this.description = '',
     this.isCompleted = false,
     List<Map<String, DateTime>>? timeEntries,
-  }) : this.timeEntries = timeEntries ?? [];
+  }) : timeEntries = timeEntries ?? [];
 
   Duration getTotalTimeSpent() {
     if (timeEntries.isEmpty) {
