@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
-import 'package:intl/intl.dart'; // Add this dependency to pubspec.yaml
+import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
@@ -109,7 +110,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ElevatedButton.icon(
                   onPressed: _isTimerRunning ? null : _startTimer,
                   icon: const Icon(Icons.play_arrow),
-                  label: const Text('Start Time'),
+                  label: Text(
+                    'Start Time', 
+                    style: GoogleFonts.inter(),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     disabledBackgroundColor: Colors.grey,
@@ -119,7 +123,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ElevatedButton.icon(
                   onPressed: _isTimerRunning ? _stopTimer : null,
                   icon: const Icon(Icons.stop),
-                  label: const Text('Stop Time'),
+                  label: Text(
+                    'Stop Time',
+                    style: GoogleFonts.inter(),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     disabledBackgroundColor: Colors.grey,
@@ -133,11 +140,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
                   'Time started at: ${_formatDateTime(_startTime!)}',
-                  style: const TextStyle(fontStyle: FontStyle.italic),
+                  style: GoogleFonts.inter(
+                    fontStyle: FontStyle.italic,
+                    color: Colors.green.shade700,
+                  ),
                 ),
               ),
             const SizedBox(height: 10),
-            const Text('Time Logs:', style: TextStyle(fontSize: 18)),
+            const Text('Time Logs:', 
+              style: TextStyle(fontSize: 18),
+            ),
             const SizedBox(height: 10),
             Expanded(
               child: Container(
@@ -146,7 +158,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: widget.task.timeEntries.isEmpty
-                  ? const Center(child: Text('No time entries yet'))
+                  ? Center(
+                      child: Text(
+                        'No time entries yet',
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    )
                   : ListView.builder(
                       itemCount: widget.task.timeEntries.length,
                       itemBuilder: (context, index) {
@@ -156,17 +176,28 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
                           child: Card(
+                            elevation: 2,
                             child: Padding(
                               padding: const EdgeInsets.all(12.0),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Time started at: ${_formatDateTime(entry['start']!)}'),
-                                  Text('Time stopped at: ${_formatDateTime(entry['end']!)}'),
+                                  Text(
+                                    'Time started at: ${_formatDateTime(entry['start']!)}',
+                                    style: GoogleFonts.inter(fontSize: 14),
+                                  ),
+                                  Text(
+                                    'Time stopped at: ${_formatDateTime(entry['end']!)}',
+                                    style: GoogleFonts.inter(fontSize: 14),
+                                  ),
                                   const Divider(),
                                   Text(
                                     'You worked for: ${_formatDuration(duration)}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade700,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -189,7 +220,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                 ),
-                child: const Text('Save and Return'),
+                child: Text(
+                  'Save and Return',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],
