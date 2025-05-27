@@ -63,6 +63,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
   }
 
+  Widget _buildStatRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.blue.shade700),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.inter(fontSize: 14),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -74,6 +98,42 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Add this section to display the total time
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.access_time, color: Colors.blue),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Time Committed',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                      Text(
+                        _formatDuration(widget.task.getTotalTimeSpent()),
+                        style: GoogleFonts.inter(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 15),
             Row(
               children: [
                 const Text('Completed: ', style: TextStyle(fontSize: 18)),
@@ -100,6 +160,40 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               onChanged: (value) {
                 widget.task.description = value;
               },
+            ),
+            const SizedBox(height: 20),
+            const Text('Time Tracking Statistics:', style: TextStyle(fontSize: 18)),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                children: [
+                  _buildStatRow(
+                    'Total Time Committed:',
+                    _formatDuration(widget.task.getTotalTimeSpent()),
+                    Icons.access_time,
+                  ),
+                  const Divider(),
+                  _buildStatRow(
+                    'Work Sessions:',
+                    '${widget.task.timeEntries.length}',
+                    Icons.calendar_today,
+                  ),
+                  if (widget.task.timeEntries.isNotEmpty) ...[
+                    const Divider(),
+                    _buildStatRow(
+                      'Average Session Length:',
+                      _formatDuration(widget.task.getTotalTimeSpent() ~/ widget.task.timeEntries.length),
+                      Icons.av_timer,
+                    ),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             const Text('Time Tracking:', style: TextStyle(fontSize: 18)),

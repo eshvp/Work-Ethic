@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import 'task_detail_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+// Add this utility function to format duration
+String formatDuration(Duration duration) {
+  String twoDigits(int n) => n.toString().padLeft(2, '0');
+  String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+  String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+  return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,6 +43,16 @@ class _HomeScreenState extends State<HomeScreen> {
         _taskController.clear();
       });
     }
+  }
+
+  // Helper method to calculate progress value for the progress indicator
+  double _getProgressValue(Task task) {
+    // This is a simplified example - you might want different logic
+    // For example, considering an hour spent as "full progress"
+    final hours = task.getTotalTimeSpent().inHours;
+    if (hours <= 0) return 0.1;  // Always show at least a bit of progress
+    if (hours >= 10) return 1.0; // Cap at 10 hours for full progress
+    return hours / 10.0;
   }
 
   @override
@@ -70,24 +89,95 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: _tasks.length,
               itemBuilder: (context, index) {
                 final task = _tasks[index];
-                return ListTile(
-                  title: Text(task.title),
-                  leading: Checkbox(
-                    value: task.isCompleted,
-                    onChanged: (value) {
-                      setState(() {
-                        task.isCompleted = value ?? false;
-                      });
-                    },
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => TaskDetailScreen(task: task),
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: Text(
+                          task.title,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            decoration: task.isCompleted ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        subtitle: Row(
+                          children: [
+                            const Icon(Icons.access_time, size: 14, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Total: ${formatDuration(task.getTotalTimeSpent())}',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        leading: Checkbox(
+                          value: task.isCompleted,
+                          onChanged: (value) {
+                            setState(() {
+                              task.isCompleted = value ?? false;
+                            });
+                          },
+                        ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: Colors.blue.shade700,
+                        ),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TaskDetailScreen(task: task),
+                            ),
+                          );
+                          // Force UI update after returning from task detail
+                          setState(() {});
+                        },
                       ),
-                    );
-                  },
+                      
+                      // Add a time progress indicator
+                      if (task.timeEntries.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${task.timeEntries.length} work sessions',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  Text(
+                                    formatDuration(task.getTotalTimeSpent()),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              LinearProgressIndicator(
+                                value: _getProgressValue(task),
+                                backgroundColor: Colors.grey.shade200,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  task.isCompleted ? Colors.green.shade400 : Colors.blue.shade400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 );
               },
             ),
