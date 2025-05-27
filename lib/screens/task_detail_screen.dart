@@ -215,15 +215,100 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         decoration: InputDecoration(
                           border: const OutlineInputBorder(),
                           hintText: 'Hours to complete',
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.info_outline),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return AlertDialog(
+                                    title: Text(
+                                      'Estimated Hours',
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    content: Text(
+                                      'Once set, estimated hours cannot be changed. This helps maintain accuracy in progress tracking.',
+                                      style: GoogleFonts.inter(),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text(
+                                          'OK',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.blue.shade700,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         controller: TextEditingController(text: widget.task.estimatedHours > 0 
                             ? widget.task.estimatedHours.toString() : ''),
                         onChanged: (value) {
-                          setState(() {
-                            widget.task.estimatedHours = double.tryParse(value) ?? 0.0;
-                          });
+                          // Check if there are already time entries
+                          if (widget.task.estimatedHours > 0) {
+                            // Show dialog that it can't be changed
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text(
+                                    'Cannot Change Estimate',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  content: Text(
+                                    'Estimated hours cannot be changed once set. This ensures accurate progress tracking for your tasks.',
+                                    style: GoogleFonts.inter(),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: Text(
+                                        'OK',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.blue.shade700,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                            // Revert the text field to the original value
+                            setState(() {
+                              // Force the controller to update with the original value
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                TextEditingController(text: widget.task.estimatedHours.toString())
+                                  ..selection = TextSelection.fromPosition(
+                                    TextPosition(offset: widget.task.estimatedHours.toString().length),
+                                  );
+                              });
+                            });
+                          } else {
+                            // Allow setting the value if it hasn't been set yet
+                            setState(() {
+                              widget.task.estimatedHours = double.tryParse(value) ?? 0.0;
+                            });
+                          }
                         },
+                        // Disable the field if already set
+                        enabled: widget.task.estimatedHours == 0,
                       ),
                     ),
                   ],
