@@ -47,12 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Helper method to calculate progress value for the progress indicator
   double _getProgressValue(Task task) {
-    // This is a simplified example - you might want different logic
-    // For example, considering an hour spent as "full progress"
-    final hours = task.getTotalTimeSpent().inHours;
-    if (hours <= 0) return 0.1;  // Always show at least a bit of progress
-    if (hours >= 10) return 1.0; // Cap at 10 hours for full progress
-    return hours / 10.0;
+    return task.getProgressPercentage();
   }
 
   @override

@@ -108,28 +108,84 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.blue.shade200),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      const Icon(Icons.access_time, color: Colors.blue),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
                         children: [
-                          Text(
-                            'Total Time Committed',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              color: Colors.blue.shade800,
-                            ),
+                          const Icon(Icons.access_time, color: Colors.blue),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Total Time Committed',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: Colors.blue.shade800,
+                                ),
+                              ),
+                              Text(
+                                _formatDuration(widget.task.getTotalTimeSpent()),
+                                style: GoogleFonts.inter(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade800,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            _formatDuration(widget.task.getTotalTimeSpent()),
-                            style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade800,
-                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today, color: Colors.blue),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Work Sessions',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  color: Colors.blue.shade800,
+                                ),
+                              ),
+                              Text(
+                                '${widget.task.timeEntries.length}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade800,
+                                ),
+                              ),
+                            ],
                           ),
+                          const Spacer(),
+                          if (widget.task.timeEntries.isNotEmpty) ...[
+                            const Icon(Icons.av_timer, color: Colors.blue),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Avg Session Time',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: Colors.blue.shade800,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDuration(widget.task.getTotalTimeSpent() ~/ widget.task.timeEntries.length),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -146,6 +202,29 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           widget.task.isCompleted = value ?? false;
                         });
                       },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  children: [
+                    const Text('Estimated Hours: ', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          border: const OutlineInputBorder(),
+                          hintText: 'Hours to complete',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        controller: TextEditingController(text: widget.task.estimatedHours > 0 
+                            ? widget.task.estimatedHours.toString() : ''),
+                        onChanged: (value) {
+                          setState(() {
+                            widget.task.estimatedHours = double.tryParse(value) ?? 0.0;
+                          });
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -192,6 +271,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           'Average Session Length:',
                           _formatDuration(widget.task.getTotalTimeSpent() ~/ widget.task.timeEntries.length),
                           Icons.av_timer,
+                        ),
+                      ],
+                      // Add this to the time tracking statistics container
+                      if (widget.task.estimatedHours > 0) ...[
+                        const Divider(),
+                        _buildStatRow(
+                          'Estimated Time:',
+                          '${widget.task.estimatedHours} hours',
+                          Icons.timer_outlined,
+                        ),
+                        const Divider(),
+                        _buildStatRow(
+                          'Progress:',
+                          '${(widget.task.getProgressPercentage() * 100).toStringAsFixed(1)}%',
+                          Icons.trending_up,
                         ),
                       ],
                     ],
