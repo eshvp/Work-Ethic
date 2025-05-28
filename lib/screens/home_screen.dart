@@ -134,7 +134,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('WorkEthic'),
+        title: Row(
+          children: [
+            Image.asset(
+              'logos/WorkEthic-Logo.png',
+              height: 32,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Work Ethic',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [
