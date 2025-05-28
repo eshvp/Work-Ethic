@@ -133,8 +133,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       
-                      // Add a time progress indicator
-                      if (task.timeEntries.isNotEmpty)
+                      // Only show progress bar if estimated hours are 
+                      if (task.estimatedHours > 0)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                           child: Column(
@@ -144,14 +144,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    '${task.timeEntries.length} work sessions',
+                                    '${(task.getProgressPercentage() * 100).toStringAsFixed(1)}% complete',
                                     style: GoogleFonts.inter(
                                       fontSize: 12,
                                       color: Colors.grey.shade600,
                                     ),
                                   ),
                                   Text(
-                                    formatDuration(task.getTotalTimeSpent()),
+                                    'Est: ${task.estimatedHours} hrs',
                                     style: GoogleFonts.inter(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -166,6 +166,31 @@ class _HomeScreenState extends State<HomeScreen> {
                                 backgroundColor: Colors.grey.shade200,
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   task.isCompleted ? Colors.green.shade400 : Colors.blue.shade400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (task.timeEntries.isNotEmpty)
+                        // Just show work sessions info without progress bar if no estimate
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${task.timeEntries.length} work sessions',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                formatDuration(task.getTotalTimeSpent()),
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
                                 ),
                               ),
                             ],

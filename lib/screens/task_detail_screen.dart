@@ -24,8 +24,19 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     
     // Show the info snackbar after the screen has finished building
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // First, close any existing snackbars to prevent stacking
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      
       // Only show the notification if estimated hours haven't been set yet
-      if (widget.task.estimatedHours == 0 && mounted) {
+      // AND the info hasn't been shown for this task yet
+      if (widget.task.estimatedHours == 0 && 
+          widget.task.timeEntries.isEmpty && 
+          !widget.task.estimateInfoShown && 
+          mounted) {
+        
+        // Mark this task as having shown the info
+        widget.task.estimateInfoShown = true;
+        
         // Show snackbar explaining the estimated hours feature
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -35,7 +46,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Set your estimated hours to track progress. Once set, estimates cannot be changed.',
+                    'Set your estimated hours before starting work. Once set or once work begins, estimates cannot be changed.',
                     style: GoogleFonts.inter(),
                   ),
                 ),
@@ -264,7 +275,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                       ),
                                     ),
                                     content: Text(
-                                      'Once set, estimated hours cannot be changed. This helps maintain accuracy in progress tracking.',
+                                      'Once set or once you begin tracking time, estimated hours cannot be changed. This helps maintain accuracy in progress tracking.',
                                       style: GoogleFonts.inter(),
                                     ),
                                     actions: [
@@ -291,8 +302,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         controller: TextEditingController(text: widget.task.estimatedHours > 0 
                             ? widget.task.estimatedHours.toString() : ''),
                         onChanged: (value) {
-                          // Check if there are already time entries
-                          if (widget.task.estimatedHours > 0) {
+                          // Check if there are already time entries or estimate is set
+                          if (widget.task.estimatedHours > 0 || widget.task.timeEntries.isNotEmpty) {
                             // Show dialog that it can't be changed
                             showDialog(
                               context: context,
@@ -305,7 +316,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                     ),
                                   ),
                                   content: Text(
-                                    'Estimated hours cannot be changed once set. This ensures accurate progress tracking for your tasks.',
+                                    widget.task.timeEntries.isNotEmpty
+                                      ? 'Estimated hours cannot be changed after work has begun. This ensures accurate progress tracking for your tasks.'
+                                      : 'Estimated hours cannot be changed once set. This ensures accurate progress tracking for your tasks.',
                                     style: GoogleFonts.inter(),
                                   ),
                                   actions: [
@@ -342,8 +355,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             });
                           }
                         },
-                        // Disable the field if already set
-                        enabled: widget.task.estimatedHours == 0,
+                        // Disable the field if already set or if work has started
+                        enabled: widget.task.estimatedHours == 0 && widget.task.timeEntries.isEmpty,
                       ),
                     ),
                   ],

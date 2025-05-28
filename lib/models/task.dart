@@ -5,6 +5,7 @@ class Task {
   bool isCompleted;
   List<Map<String, DateTime>> timeEntries;
   double estimatedHours; // Add estimated hours property
+  bool estimateInfoShown; // Add this flag to track if info was shown
 
   Task({
     required this.id,
@@ -12,6 +13,7 @@ class Task {
     this.description = '',
     this.isCompleted = false,
     this.estimatedHours = 0.0, // Default to 0 hours
+    this.estimateInfoShown = false, // Initialize to false
     List<Map<String, DateTime>>? timeEntries,
   }) : timeEntries = timeEntries ?? [];
 
