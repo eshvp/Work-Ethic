@@ -50,6 +50,55 @@ class _HomeScreenState extends State<HomeScreen> {
     return task.getProgressPercentage();
   }
 
+  // Add this method to the _HomeScreenState class
+  void _removeTask(Task task) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Delete Task',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to delete "${task.title}"? This action cannot be undone.',
+            style: GoogleFonts.inter(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog without deleting
+              },
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _tasks.removeWhere((t) => t.id == task.id);
+                });
+                Navigator.of(context).pop(); // Close dialog
+              },
+              child: Text(
+                'Delete',
+                style: GoogleFonts.inter(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,9 +166,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             });
                           },
                         ),
-                        trailing: Icon(
-                          Icons.chevron_right,
-                          color: Colors.blue.shade700,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              onPressed: () => _removeTask(task),
+                              tooltip: 'Delete task',
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              color: Colors.blue.shade700,
+                            ),
+                          ],
                         ),
                         onTap: () async {
                           await Navigator.push(
