@@ -21,6 +21,41 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   void initState() {
     super.initState();
     _descriptionController = TextEditingController(text: widget.task.description);
+    
+    // Show the info snackbar after the screen has finished building
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Only show the notification if estimated hours haven't been set yet
+      if (widget.task.estimatedHours == 0 && mounted) {
+        // Show snackbar explaining the estimated hours feature
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Set your estimated hours to track progress. Once set, estimates cannot be changed.',
+                    style: GoogleFonts.inter(),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 10),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            action: SnackBarAction(
+              label: 'GOT IT',
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    });
   }
 
   @override
