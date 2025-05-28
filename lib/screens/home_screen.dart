@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
-import '../models/task.dart';
-import 'task_detail_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-// Add this utility function to format duration
-String formatDuration(Duration duration) {
-  String twoDigits(int n) => n.toString().padLeft(2, '0');
-  String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-  String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
-  return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
-}
+import '../models/task.dart';
+import '../screens/task_detail_screen.dart';
+import '../services/task_service.dart';
+import 'package:uuid/uuid.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,38 +13,63 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Task> _tasks = [
-    Task(id: '1', title: 'Complete Flutter Tutorial'),
-    Task(id: '2', title: 'Implement Task List'),
-    Task(id: '3', title: 'Add Task Detail Screen'),
-  ];
-  
   final TextEditingController _taskController = TextEditingController();
+  List<Task> _tasks = [];
+  bool _isLoading = true;
 
   @override
-  void dispose() {
-    _taskController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadTasks();
   }
 
-  void _addTask() {
-    if (_taskController.text.isNotEmpty) {
+  // Load tasks from storage when app starts
+  Future<void> _loadTasks() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final tasks = await TaskService.loadTasks();
       setState(() {
-        _tasks.add(Task(
-          id: DateTime.now().toString(),
-          title: _taskController.text,
-        ));
-        _taskController.clear();
+        _tasks = tasks;
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Handle any errors
+      print('Error loading tasks: $e');
+      setState(() {
+        _isLoading = false;
       });
     }
   }
 
-  // Helper method to calculate progress value for the progress indicator
-  double _getProgressValue(Task task) {
-    return task.getProgressPercentage();
+  // Save tasks to storage whenever they change
+  Future<void> _saveTasks() async {
+    try {
+      await TaskService.saveTasks(_tasks);
+    } catch (e) {
+      // Handle any errors
+      print('Error saving tasks: $e');
+    }
   }
 
-  // Add this method to the _HomeScreenState class
+  void _addTask() {
+    final taskTitle = _taskController.text.trim();
+    if (taskTitle.isNotEmpty) {
+      setState(() {
+        _tasks.add(
+          Task(
+            id: const Uuid().v4(),
+            title: taskTitle,
+          ),
+        );
+        _taskController.clear();
+      });
+      _saveTasks();
+    }
+  }
+
   void _removeTask(Task task) {
     showDialog(
       context: context,
@@ -83,6 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 setState(() {
                   _tasks.removeWhere((t) => t.id == task.id);
                 });
+                _saveTasks();
                 Navigator.of(context).pop(); // Close dialog
               },
               child: Text(
@@ -97,6 +117,17 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  String formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  double _getProgressValue(Task task) {
+    return task.getProgressPercentage();
   }
 
   @override
@@ -164,6 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             setState(() {
                               task.isCompleted = value ?? false;
                             });
+                            _saveTasks();
                           },
                         ),
                         trailing: Row(
@@ -187,7 +219,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               builder: (context) => TaskDetailScreen(task: task),
                             ),
                           );
-                          // Force UI update after returning from task detail
+                          // Save any changes made in the detail screen
+                          _saveTasks();
                           setState(() {});
                         },
                       ),

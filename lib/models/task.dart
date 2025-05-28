@@ -1,19 +1,21 @@
+import 'dart:convert';
+
 class Task {
   final String id;
   final String title;
   String description;
   bool isCompleted;
   List<Map<String, DateTime>> timeEntries;
-  double estimatedHours; // Add estimated hours property
-  bool estimateInfoShown; // Add this flag to track if info was shown
+  double estimatedHours;
+  bool estimateInfoShown;
 
   Task({
     required this.id,
     required this.title,
     this.description = '',
     this.isCompleted = false,
-    this.estimatedHours = 0.0, // Default to 0 hours
-    this.estimateInfoShown = false, // Initialize to false
+    this.estimatedHours = 0.0,
+    this.estimateInfoShown = false,
     List<Map<String, DateTime>>? timeEntries,
   }) : timeEntries = timeEntries ?? [];
 
@@ -31,17 +33,48 @@ class Task {
     return total;
   }
   
-  // Calculate progress based on estimated hours
   double getProgressPercentage() {
-    if (isCompleted) return 1.0; // If task is completed, return 100%
-    if (estimatedHours <= 0) return 0.1; // If no estimate, show minimum progress
+    if (isCompleted) return 1.0;
+    if (estimatedHours <= 0) return 0.1;
     
     final hoursSpent = getTotalTimeSpent().inMinutes / 60.0;
     final progress = hoursSpent / estimatedHours;
     
-    // Cap at 99% if not marked as completed
     if (progress >= 0.99 && !isCompleted) return 0.99;
-    // Ensure progress is between 0 and 1
     return progress.clamp(0.0, 1.0);
+  }
+  
+  // Convert Task to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'isCompleted': isCompleted,
+      'estimatedHours': estimatedHours,
+      'estimateInfoShown': estimateInfoShown,
+      'timeEntries': timeEntries.map((entry) => {
+        'start': entry['start']?.toIso8601String(),
+        'end': entry['end']?.toIso8601String(),
+      }).toList(),
+    };
+  }
+  
+  // Create Task from JSON
+  factory Task.fromJson(Map<String, dynamic> json) {
+    return Task(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'] ?? '',
+      isCompleted: json['isCompleted'] ?? false,
+      estimatedHours: json['estimatedHours']?.toDouble() ?? 0.0,
+      estimateInfoShown: json['estimateInfoShown'] ?? false,
+      timeEntries: (json['timeEntries'] as List?)?.map((entry) {
+        return {
+          'start': DateTime.parse(entry['start']),
+          'end': DateTime.parse(entry['end']),
+        };
+      }).toList() ?? [],
+    );
   }
 }
