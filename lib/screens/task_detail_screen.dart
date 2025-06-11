@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import '../models/task.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -86,12 +87,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       _isTimerRunning = true;
       _startTime = DateTime.now();
     });
+
+    // Start the foreground service
+    _startForegroundService();
   }
 
   void _stopTimer() {
     if (_startTime != null) {
       final endTime = DateTime.now();
-      
+
       setState(() {
         widget.task.timeEntries.add({
           'start': _startTime!,
@@ -100,6 +104,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         _isTimerRunning = false;
         _startTime = null;
       });
+
+      // Stop the foreground service
+      _stopForegroundService();
     }
   }
 
@@ -137,6 +144,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         ],
       ),
     );
+  }
+
+  void _startForegroundService() {
+    FlutterForegroundTask.startService(
+      notificationTitle: 'Work Ethic Timer',
+      notificationText: 'Tracking your task time...',
+    );
+  }
+
+  void _stopForegroundService() {
+    FlutterForegroundTask.stopService();
   }
 
   @override
