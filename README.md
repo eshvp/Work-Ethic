@@ -1,6 +1,6 @@
-# WorkEthic
+# Work Ethic
 
-**WorkEthic** is a task management app built with Flutter to help improve productivity and track your work ethic through time-based task tracking.
+**Work Ethic** is a task management app built with Flutter to help improve productivity and track your work ethic through time-based task tracking.
 
 ## Features
 
@@ -78,4 +78,4 @@ flutter build ios --release
 
 ## About
 
-WorkEthic helps you stay organized and focused by tracking both your tasks and the time you spend on them. Set estimated completion times and track your progress as you work, helping you build better time management skills and a stronger work ethic.
+Work Ethic helps you stay organized and focused by tracking both your tasks and the time you spend on them. Set estimated completion times and track your progress as you work, helping you build better time management skills and a stronger work ethic.
