@@ -42,4 +42,10 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+
+    <!-- Permission for notifications (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Permission to guide users to disable battery optimization -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 </manifest>

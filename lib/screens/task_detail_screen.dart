@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'dart:isolate';
 import '../models/task.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/task_stats_widget.dart';
+import '../widgets/time_logs_widget.dart';
+import '../widgets/timer_controls_widget.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
@@ -18,7 +23,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   late TextEditingController _estimatedHoursController;
   bool _isTimerRunning = false;
   DateTime? _startTime;
-  String _tempEstimatedHours = '';
 
   @override
   void initState() {
@@ -27,7 +31,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _estimatedHoursController = TextEditingController(
       text: widget.task.estimatedHours > 0 ? widget.task.estimatedHours.toString() : ''
     );
-    
+
+    _initForegroundTask();
+    _initializeForegroundTaskListener();
+
+    // Request permissions on the first task
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestPermissionsIfNeeded();
+    });
+
     // Show the info snackbar after the screen has finished building
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // First, close any existing snackbars to prevent stacking
@@ -82,14 +94,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     super.dispose();
   }
 
+  void _startForegroundServiceForTask(String taskId, String taskTitle) {
+    FlutterForegroundTask.startService(
+      notificationTitle: 'Task: $taskTitle',
+      notificationText: 'Tracking time for task $taskTitle...',
+      callback: startCallback,
+    );
+    FlutterForegroundTask.saveData(key: 'currentTaskId', value: taskId);
+  }
+
+  void _stopForegroundServiceForTask(String taskId) async {
+    final currentTaskId = await FlutterForegroundTask.getData<String>(key: 'currentTaskId');
+    if (currentTaskId == taskId) {
+      FlutterForegroundTask.stopService();
+    }
+  }
+
   void _startTimer() {
     setState(() {
       _isTimerRunning = true;
       _startTime = DateTime.now();
     });
 
-    // Start the foreground service
-    _startForegroundService();
+    // Start the foreground service for the specific task
+    _startForegroundServiceForTask(widget.task.id, widget.task.title);
   }
 
   void _stopTimer() {
@@ -105,8 +133,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
         _startTime = null;
       });
 
-      // Stop the foreground service
-      _stopForegroundService();
+      // Stop the foreground service for the specific task
+      _stopForegroundServiceForTask(widget.task.id);
     }
   }
 
@@ -122,39 +150,110 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
   }
 
-  Widget _buildStatRow(String label, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: Colors.blue.shade700),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: GoogleFonts.inter(fontSize: 14),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+  // Updated _initForegroundTask to initialize at app startup
+  void _initForegroundTask() {
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'work_ethic_timer',
+        channelName: 'Work Ethic Timer',
+        channelDescription: 'Timer notifications for Work Ethic app',
+        channelImportance: NotificationChannelImportance.HIGH,
+        priority: NotificationPriority.HIGH,
+      ),
+      iosNotificationOptions: IOSNotificationOptions(),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        interval: 1000,
+        isOnceEvent: false,
+        autoRunOnBoot: false,
+        allowWakeLock: true,
+        allowWifiLock: true,
       ),
     );
   }
 
-  void _startForegroundService() {
-    FlutterForegroundTask.startService(
+  void _initializeForegroundTaskListener() async {
+    final receivePort = await FlutterForegroundTask.receivePort;
+    receivePort?.listen((data) {
+      if (data is String) {
+        if (data == 'pause_resume') {
+          if (_isTimerRunning) {
+            _pauseTimer();
+          } else {
+            _resumeTimer();
+          }
+        } else if (data == 'stop') {
+          _stopTimer();
+        }
+      }
+    });
+  }
+
+  void _pauseTimer() {
+    setState(() {
+      _isTimerRunning = false;
+    });
+    FlutterForegroundTask.updateService(
       notificationTitle: 'Work Ethic Timer',
-      notificationText: 'Tracking your task time...',
+      notificationText: 'Timer paused.',
     );
   }
 
-  void _stopForegroundService() {
-    FlutterForegroundTask.stopService();
+  void _resumeTimer() {
+    setState(() {
+      _isTimerRunning = true;
+    });
+    FlutterForegroundTask.updateService(
+      notificationTitle: 'Work Ethic Timer',
+      notificationText: 'Timer resumed.',
+    );
+  }
+
+  void _requestPermissionsIfNeeded() async {
+    // Check and request notification permission (Android 13+)
+    if (await Permission.notification.isDenied) {
+      final status = await Permission.notification.request();
+      if (status != PermissionStatus.granted) {
+        _showPermissionDialog(
+          'Notifications are blocked. Please enable notifications in the app settings.',
+          openNotificationSettings: true,
+        );
+        return;
+      }
+    }
+
+    // Check and request battery optimization ignore permission (Android only)
+    if (!await FlutterForegroundTask.isIgnoringBatteryOptimizations) {
+      await FlutterForegroundTask.requestIgnoreBatteryOptimization();
+    }
+
+    // Inform users about "Pause App Activity if Unused" setting
+    _showPermissionDialog(
+      'To ensure the app works correctly, please disable the "Pause app activity if unused" setting in your system settings.',
+    );
+  }
+
+  void _showPermissionDialog(String message, {bool openNotificationSettings = false}) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Permission Required'),
+        content: Text(message),
+        actions: [
+          if (openNotificationSettings)
+            TextButton(
+              onPressed: () {
+                openAppSettings();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Open Notification Settings'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -170,391 +269,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Add this section to display the total time
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.access_time, color: Colors.blue),
-                          const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Total Time Committed',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  color: Colors.blue.shade800,
-                                ),
-                              ),
-                              Text(
-                                _formatDuration(widget.task.getTotalTimeSpent()),
-                                style: GoogleFonts.inter(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_today, color: Colors.blue),
-                          const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Work Sessions',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  color: Colors.blue.shade800,
-                                ),
-                              ),
-                              Text(
-                                '${widget.task.timeEntries.length}',
-                                style: GoogleFonts.inter(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade800,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          if (widget.task.timeEntries.isNotEmpty) ...[
-                            const Icon(Icons.av_timer, color: Colors.blue),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Avg Session Time',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    color: Colors.blue.shade800,
-                                  ),
-                                ),
-                                Text(
-                                  _formatDuration(widget.task.getTotalTimeSpent() ~/ widget.task.timeEntries.length),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  children: [
-                    const Text('Completed: ', style: TextStyle(fontSize: 18)),
-                    Checkbox(
-                      value: widget.task.isCompleted,
-                      onChanged: (value) {
-                        setState(() {
-                          widget.task.isCompleted = value ?? false;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                Row(
-                  children: [
-                    const Text('Estimated Hours: ', style: TextStyle(fontSize: 18)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        decoration: InputDecoration(
-                          border: const OutlineInputBorder(),
-                          hintText: 'Hours to complete',
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.info_outline),
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text(
-                                      'Estimated Hours',
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    content: Text(
-                                      'Once set or once you begin tracking time, estimated hours cannot be changed. This helps maintain accuracy in progress tracking.',
-                                      style: GoogleFonts.inter(),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                        },
-                                        child: Text(
-                                          'OK',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.blue.shade700,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        controller: _estimatedHoursController,
-                        // Only store the value temporarily while typing
-                        onChanged: (value) {
-                          _tempEstimatedHours = value;
-                        },
-                        // Save the value when the user submits
-                        onSubmitted: (value) {
-                          double? parsedValue = double.tryParse(value);
-                          if (parsedValue != null && parsedValue > 0) {
-                            if (widget.task.estimatedHours > 0 || widget.task.timeEntries.isNotEmpty) {
-                              // Show dialog that it can't be changed
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return AlertDialog(
-                                    title: Text(
-                                      'Cannot Change Estimate',
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    content: Text(
-                                      widget.task.timeEntries.isNotEmpty
-                                        ? 'Estimated hours cannot be changed after work has begun. This ensures accurate progress tracking for your tasks.'
-                                        : 'Estimated hours cannot be changed once set. This ensures accurate progress tracking for your tasks.',
-                                      style: GoogleFonts.inter(),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                        },
-                                        child: Text(
-                                          'OK',
-                                          style: GoogleFonts.inter(
-                                            color: Colors.blue.shade700,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                              // Revert to original value
-                              setState(() {
-                                _estimatedHoursController.text = widget.task.estimatedHours.toString();
-                              });
-                            } else {
-                              // Save the value
-                              setState(() {
-                                widget.task.estimatedHours = parsedValue;
-                                // Update UI to show the field is now locked
-                                _estimatedHoursController.text = parsedValue.toString();
-                              });
-                            }
-                          }
-                        },
-                        // Disable the field if already set or if work has started
-                        enabled: widget.task.estimatedHours == 0 && widget.task.timeEntries.isEmpty,
-                      ),
-                    ),
-                  ],
+                TaskStatsWidget(
+                  task: widget.task,
+                  formatDuration: _formatDuration,
                 ),
                 const SizedBox(height: 20),
-                const Text('Description:', style: TextStyle(fontSize: 18)),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Add description...',
-                  ),
-                  maxLines: 5,
-                  onChanged: (value) {
-                    widget.task.description = value;
-                  },
+                TimerControlsWidget(
+                  isTimerRunning: _isTimerRunning,
+                  onStart: _startTimer,
+                  onStop: _stopTimer,
                 ),
                 const SizedBox(height: 20),
-                const Text('Time Tracking Statistics:', style: TextStyle(fontSize: 18)),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildStatRow(
-                        'Total Time Committed:',
-                        _formatDuration(widget.task.getTotalTimeSpent()),
-                        Icons.access_time,
-                      ),
-                      const Divider(),
-                      _buildStatRow(
-                        'Work Sessions:',
-                        '${widget.task.timeEntries.length}',
-                        Icons.calendar_today,
-                      ),
-                      if (widget.task.timeEntries.isNotEmpty) ...[
-                        const Divider(),
-                        _buildStatRow(
-                          'Average Session Length:',
-                          _formatDuration(widget.task.getTotalTimeSpent() ~/ widget.task.timeEntries.length),
-                          Icons.av_timer,
-                        ),
-                      ],
-                      // Add this to the time tracking statistics container
-                      if (widget.task.estimatedHours > 0) ...[
-                        const Divider(),
-                        _buildStatRow(
-                          'Estimated Time:',
-                          '${widget.task.estimatedHours} hours',
-                          Icons.timer_outlined,
-                        ),
-                        const Divider(),
-                        _buildStatRow(
-                          'Progress:',
-                          '${(widget.task.getProgressPercentage() * 100).toStringAsFixed(1)}%',
-                          Icons.trending_up,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text('Time Tracking:', style: TextStyle(fontSize: 18)),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _isTimerRunning ? null : _startTimer,
-                      icon: const Icon(Icons.play_arrow),
-                      label: Text(
-                        'Start Time', 
-                        style: GoogleFonts.inter(),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        disabledBackgroundColor: Colors.grey,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _isTimerRunning ? _stopTimer : null,
-                      icon: const Icon(Icons.stop),
-                      label: Text(
-                        'Stop Time',
-                        style: GoogleFonts.inter(),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        disabledBackgroundColor: Colors.grey,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_isTimerRunning && _startTime != null)
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      'Time started at: ${_formatDateTime(_startTime!)}',
-                      style: GoogleFonts.inter(
-                        fontStyle: FontStyle.italic,
-                        color: Colors.green.shade700,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 10),
-                const Text('Time Logs:', 
-                  style: TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  height: 200, // Fixed height for the time logs section
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: widget.task.timeEntries.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No time entries yet',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: widget.task.timeEntries.length,
-                        itemBuilder: (context, index) {
-                          final entry = widget.task.timeEntries[index];
-                          final duration = entry['end']!.difference(entry['start']!);
-                          
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-                            child: Card(
-                              elevation: 2,
-                              child: Padding(
-                                padding: const EdgeInsets.all(12.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Time started at: ${_formatDateTime(entry['start']!)}',
-                                      style: GoogleFonts.inter(fontSize: 14),
-                                    ),
-                                    Text(
-                                      'Time stopped at: ${_formatDateTime(entry['end']!)}',
-                                      style: GoogleFonts.inter(fontSize: 14),
-                                    ),
-                                    const Divider(),
-                                    Text(
-                                      'You worked for: ${_formatDuration(duration)}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+                TimeLogsWidget(
+                  timeEntries: widget.task.timeEntries,
+                  formatDateTime: _formatDateTime,
+                  formatDuration: _formatDuration,
                 ),
                 const SizedBox(height: 20),
                 Center(
@@ -576,12 +305,47 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10), // Add some bottom padding
               ],
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+// Added startCallback function as a top-level function
+@pragma('vm:entry-point')
+void startCallback() {
+  FlutterForegroundTask.setTaskHandler(WorkEthicTaskHandler());
+}
+
+// Added WorkEthicTaskHandler class to handle foreground task events
+class WorkEthicTaskHandler extends TaskHandler {
+  @override
+  Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
+    if (sendPort != null) {
+      FlutterForegroundTask.saveData(key: 'sendPort', value: sendPort);
+    }
+  }
+
+  @override
+  Future<void> onEvent(DateTime timestamp, SendPort? sendPort) async {
+    // Logic for periodic events
+  }
+
+  @override
+  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {
+    // Cleanup logic when the foreground task is destroyed
+  }
+
+  @override
+  void onButtonPressed(String id) async {
+    final sendPort = await FlutterForegroundTask.getData<SendPort>(key: 'sendPort');
+    if (id == 'pause_resume') {
+      sendPort?.send('pause_resume');
+    } else if (id == 'stop') {
+      sendPort?.send('stop');
+    }
   }
 }
